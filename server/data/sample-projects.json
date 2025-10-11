@@ -1,0 +1,107 @@
+{
+  "projects": [
+    {
+      "id": 1,
+      "name": "Apollo Rollout",
+      "identifier": "apollo-rollout",
+      "status": "active",
+      "workPackages": [
+        {
+          "id": 101,
+          "subject": "Launch milestone",
+          "type": "Milestone",
+          "status": "open",
+          "assignee": "Alex Müller",
+          "dueDate": "2024-07-31",
+          "priority": "high"
+        },
+        {
+          "id": 102,
+          "subject": "Contract signed",
+          "type": "Deliverable",
+          "status": "closed",
+          "assignee": "Bianca Graf",
+          "dueDate": "2024-05-12",
+          "priority": "normal"
+        },
+        {
+          "id": 103,
+          "subject": "Internal QA goal",
+          "type": "Internal Goal",
+          "status": "open",
+          "assignee": "Alex Müller",
+          "dueDate": "2024-06-05",
+          "priority": "high"
+        }
+      ],
+      "offers": [
+        {
+          "id": "OF-001",
+          "freelancer": "Freelance GmbH",
+          "status": "negotiation",
+          "deadline": "2024-06-30",
+          "budget": 15000,
+          "documents": [
+            {
+              "name": "Scope v1.pdf",
+              "url": "https://example.com/scope-v1.pdf"
+            }
+          ],
+          "history": [
+            { "status": "draft", "timestamp": "2024-04-04" },
+            { "status": "negotiation", "timestamp": "2024-04-12" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Mercury Upgrade",
+      "identifier": "mercury-upgrade",
+      "status": "onHold",
+      "workPackages": [
+        {
+          "id": 201,
+          "subject": "Hardware delivery",
+          "type": "Deliverable",
+          "status": "open",
+          "assignee": "Carla Schmidt",
+          "dueDate": "2024-08-15",
+          "priority": "high"
+        },
+        {
+          "id": 202,
+          "subject": "Milestone review",
+          "type": "Milestone",
+          "status": "closed",
+          "assignee": "David Krüger",
+          "dueDate": "2024-04-01",
+          "priority": "normal"
+        },
+        {
+          "id": 203,
+          "subject": "Internal approval",
+          "type": "Internal Goal",
+          "status": "open",
+          "assignee": "Elena Weise",
+          "dueDate": "2024-07-10",
+          "priority": "low"
+        }
+      ],
+      "offers": [
+        {
+          "id": "OF-010",
+          "freelancer": "CodeWorks",
+          "status": "submitted",
+          "deadline": "2024-05-20",
+          "budget": 9200,
+          "documents": [],
+          "history": [
+            { "status": "draft", "timestamp": "2024-03-01" },
+            { "status": "submitted", "timestamp": "2024-03-05" }
+          ]
+        }
+      ]
+    }
+  ]
+}
