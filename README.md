@@ -5,10 +5,18 @@ Eine stateless Single-Page-App zur Multiprojekt-Steuerung für OpenProject. Die 
 ## Features
 - Multiprojekt-Kontext mit Checkbox-Auswahl und Statusfilter
 - KPI-Kacheln über die gewählten Projekte (offene Items, kritische Prioritäten, Fälligkeiten < 30 Tage, Meilensteine)
-- Karten je Projekt mit Objectives und Meilensteinen
-- Tabelle mit Work Items inkl. Priorität, Fälligkeit und Owner
-- Lokale Speicherung der OpenProject-URL und des API-Tokens (localStorage), serverseitig bleibt die App stateless
+- Karten je Projekt mit Beschreibung und automatisch geladenen Milestones (OpenProject Versions)
+- Tabelle mit echten Work Packages inkl. Priorität, Fälligkeit und Owner
+- OpenProject-URL und API-Token werden lokal gespeichert, serverseitig bleibt die App stateless
+- Verbindungstest-Button prüft den API-Zugriff, Export-Button liefert die aktuelle Sicht als JSON
 - Docker-Deployment via `docker-compose` und NGINX-Serve der gebauten SPA
+
+## OpenProject anbinden
+1. OpenProject-Basis-URL und persönlichen API-Token in der Kopfzeile eintragen.
+2. Mit **„Verbindung testen“** die API-Reichbarkeit prüfen.
+3. **„Projekte laden“** ruft die aktiven Projekte aus OpenProject ab und füllt die Projektliste.
+4. Über die Checkboxen Projekte auswählen; **„Work Items laden“** holt die zugehörigen Work Packages (max. 50 Einträge).
+5. Der **Export-Button** erzeugt eine JSON-Datei aus der aktuellen Projekt- und Work-Item-Sicht.
 
 ## Lokale Entwicklung
 ```bash

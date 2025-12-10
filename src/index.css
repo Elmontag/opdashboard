@@ -104,6 +104,21 @@ h3 {
   margin: 0;
 }
 
+.hint.success {
+  color: #22c55e;
+}
+
+.hint.error {
+  color: #ef4444;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 6px;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -193,19 +208,19 @@ h3 {
   border-radius: 999px;
 }
 
-.status-on_track {
+.status-active {
   background: #e0f2fe;
   color: #0369a1;
 }
 
-.status-at_risk {
-  background: #fff7ed;
-  color: #ea580c;
+.status-inactive {
+  background: #f8fafc;
+  color: #64748b;
 }
 
-.status-off_track {
-  background: #fef2f2;
-  color: #dc2626;
+.status-unknown {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .kpi-grid {
@@ -269,6 +284,16 @@ h3 {
   font-weight: 600;
 }
 
+.ghost {
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -310,6 +335,16 @@ h3 {
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 13px;
+}
+
+.objective.muted,
+.milestone.muted,
+.muted {
+  color: #94a3b8;
+}
+
+.full-width {
+  grid-column: 1 / -1;
 }
 
 .milestones {

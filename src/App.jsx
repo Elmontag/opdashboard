@@ -1,138 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-
-const sampleProjects = [
-  {
-    id: 'psa',
-    name: 'Produkt Suite A',
-    key: 'PSA',
-    manager: 'Sarah König',
-    status: 'on_track',
-    color: '#2563eb',
-    objectives: ['Neue Kundenportale für DACH', 'API-first Onboarding'],
-    milestones: [
-      { name: 'MVP Go-Live', date: '2024-07-12', owner: 'Sarah König' },
-      { name: 'Rollout Phase 1', date: '2024-09-05', owner: 'PMO' },
-    ],
-    kpis: {
-      openItems: 24,
-      milestones: 2,
-      risk: 'niedrig',
-    },
-  },
-  {
-    id: 'mobile',
-    name: 'Mobile Experience',
-    key: 'MOB',
-    manager: 'Leon Bach',
-    status: 'at_risk',
-    color: '#ea580c',
-    objectives: ['Beta-Release iOS', 'Stabilisierung Android'],
-    milestones: [
-      { name: 'Feature Freeze', date: '2024-07-30', owner: 'UX Team' },
-      { name: 'Public Beta', date: '2024-08-18', owner: 'Mobile PM' },
-    ],
-    kpis: {
-      openItems: 31,
-      milestones: 2,
-      risk: 'mittel',
-    },
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise Integrationen',
-    key: 'ENT',
-    manager: 'Dalia Mertens',
-    status: 'off_track',
-    color: '#dc2626',
-    objectives: ['SAP Connector', 'Identity Federation'],
-    milestones: [
-      { name: 'Security Review', date: '2024-07-20', owner: 'SecOps' },
-      { name: 'Pilot-Kunde live', date: '2024-08-28', owner: 'Implementierung' },
-    ],
-    kpis: {
-      openItems: 42,
-      milestones: 2,
-      risk: 'hoch',
-    },
-  },
-];
-
-const workItems = [
-  {
-    id: 'PSA-102',
-    projectId: 'psa',
-    type: 'Feature',
-    title: 'Self-Service Provisioning',
-    priority: 'hoch',
-    status: 'In Arbeit',
-    dueDate: '2024-07-15',
-    assignee: 'Mara Zimmer',
-  },
-  {
-    id: 'PSA-108',
-    projectId: 'psa',
-    type: 'Deliverable',
-    title: 'Rollout Checkliste',
-    priority: 'mittel',
-    status: 'Review',
-    dueDate: '2024-07-10',
-    assignee: 'Sarah König',
-  },
-  {
-    id: 'MOB-201',
-    projectId: 'mobile',
-    type: 'Milestone',
-    title: 'Push Notification Audit',
-    priority: 'hoch',
-    status: 'Blockiert',
-    dueDate: '2024-07-13',
-    assignee: 'SecOps',
-  },
-  {
-    id: 'MOB-220',
-    projectId: 'mobile',
-    type: 'Feature',
-    title: 'Offline-Modus',
-    priority: 'niedrig',
-    status: 'Backlog',
-    dueDate: '2024-08-30',
-    assignee: 'UX Team',
-  },
-  {
-    id: 'ENT-031',
-    projectId: 'enterprise',
-    type: 'Integration',
-    title: 'SSO Federation',
-    priority: 'hoch',
-    status: 'In Arbeit',
-    dueDate: '2024-08-04',
-    assignee: 'Platform Squad',
-  },
-  {
-    id: 'ENT-044',
-    projectId: 'enterprise',
-    type: 'Milestone',
-    title: 'Pilotkunde mit SAP',
-    priority: 'mittel',
-    status: 'In Arbeit',
-    dueDate: '2024-07-22',
-    assignee: 'Implementierung',
-  },
-];
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const statusLabels = {
-  on_track: 'On Track',
-  at_risk: 'Achtung',
-  off_track: 'Kritisch',
+  active: 'Aktiv',
+  inactive: 'Inaktiv',
+  unknown: 'Unbekannt',
 };
 
-const priorityColor = {
+const priorityColors = {
   hoch: '#dc2626',
+  high: '#dc2626',
   mittel: '#f97316',
+  medium: '#f97316',
   niedrig: '#16a34a',
+  low: '#16a34a',
 };
 
 function formatDate(dateStr) {
+  if (!dateStr) return '—';
   return new Intl.DateTimeFormat('de-DE', {
     day: '2-digit',
     month: '2-digit',
@@ -140,12 +24,34 @@ function formatDate(dateStr) {
   }).format(new Date(dateStr));
 }
 
+function colorFromId(id) {
+  const palette = ['#2563eb', '#ea580c', '#16a34a', '#7c3aed', '#dc2626', '#0891b2'];
+  if (!id) return palette[0];
+  return palette[id % palette.length];
+}
+
+function normalizePriority(priorityName) {
+  if (!priorityName) return 'n/a';
+  const normalized = priorityName.toLowerCase();
+  if (normalized.includes('hoch') || normalized.includes('high')) return 'hoch';
+  if (normalized.includes('mittel') || normalized.includes('medium')) return 'mittel';
+  if (normalized.includes('niedrig') || normalized.includes('low')) return 'niedrig';
+  return priorityName;
+}
+
 export default function App() {
-  const [selectedProjects, setSelectedProjects] = useState(sampleProjects.map((p) => p.id));
+  const [projects, setProjects] = useState([]);
+  const [versionsByProject, setVersionsByProject] = useState({});
+  const [workItems, setWorkItems] = useState([]);
+  const [selectedProjects, setSelectedProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [apiUrl, setApiUrl] = useState('');
   const [apiToken, setApiToken] = useState('');
+  const [connectionState, setConnectionState] = useState({ status: 'idle', message: '' });
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingWorkItems, setLoadingWorkItems] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const storedUrl = localStorage.getItem('opd-api-url');
@@ -159,34 +65,217 @@ export default function App() {
     if (apiToken) localStorage.setItem('opd-api-token', apiToken);
   }, [apiUrl, apiToken]);
 
+  const apiBase = useMemo(() => (apiUrl ? apiUrl.replace(/\/$/, '') : ''), [apiUrl]);
+  const authHeaders = useMemo(
+    () => (apiToken ? { Authorization: `Basic ${btoa(`${apiToken}:X`)}` } : {}),
+    [apiToken],
+  );
+
+  const testConnection = useCallback(async () => {
+    if (!apiBase || !apiToken) {
+      setConnectionState({ status: 'error', message: 'API-URL und Token werden benötigt.' });
+      return;
+    }
+
+    setConnectionState({ status: 'loading', message: 'Prüfe Verbindung …' });
+    try {
+      const res = await fetch(`${apiBase}/api/v3/users/me`, {
+        headers: {
+          ...authHeaders,
+          Accept: 'application/hal+json',
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Verbindung fehlgeschlagen (${res.status})`);
+      }
+
+      const json = await res.json();
+      setConnectionState({
+        status: 'success',
+        message: `Verbunden als ${json.name || json.login || 'User'}`,
+      });
+    } catch (err) {
+      setConnectionState({ status: 'error', message: err.message });
+    }
+  }, [apiBase, apiToken, authHeaders]);
+
+  const loadProjects = useCallback(async () => {
+    if (!apiBase || !apiToken) {
+      setError('Bitte trage API-URL und Token ein.');
+      return;
+    }
+    setError('');
+    setLoadingProjects(true);
+
+    try {
+      const res = await fetch(`${apiBase}/api/v3/projects?filters=[{"active":{"operator":"=","values":["t"]}}]`, {
+        headers: {
+          ...authHeaders,
+          Accept: 'application/hal+json',
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Projekte konnten nicht geladen werden (${res.status})`);
+      }
+
+      const json = await res.json();
+      const items = json._embedded?.elements || json._embedded?.projects || [];
+      const normalized = items.map((project) => ({
+        id: project.id,
+        name: project.name,
+        key: project.identifier,
+        manager: project._embedded?.responsible?.name || 'Unbekannt',
+        status: project.active ? 'active' : 'inactive',
+        color: colorFromId(project.id),
+        description: project.description?.raw,
+      }));
+      setProjects(normalized);
+      setSelectedProjects(normalized.map((p) => p.id));
+    } catch (err) {
+      setError(err.message);
+      setProjects([]);
+      setSelectedProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [apiBase, apiToken, authHeaders]);
+
+  const loadVersions = useCallback(
+    async (projectIds) => {
+      if (!projectIds.length || !apiBase || !apiToken) return;
+      const nextVersions = {};
+
+      for (const projectId of projectIds) {
+        try {
+          const res = await fetch(`${apiBase}/api/v3/projects/${projectId}/versions`, {
+            headers: {
+              ...authHeaders,
+              Accept: 'application/hal+json',
+            },
+          });
+
+          if (!res.ok) continue;
+          const json = await res.json();
+          const versions = json._embedded?.elements || json._embedded?.versions || [];
+          nextVersions[projectId] = versions
+            .filter((v) => v.status !== 'closed')
+            .map((version) => ({
+              id: version.id,
+              name: version.name,
+              date: version.dueDate,
+              owner: version._embedded?.responsible?.name || 'Projektteam',
+            }));
+        } catch (err) {
+          console.warn('Version fetch failed', err);
+        }
+      }
+
+      setVersionsByProject((prev) => ({ ...prev, ...nextVersions }));
+    },
+    [apiBase, apiToken, authHeaders],
+  );
+
+  const loadWorkItems = useCallback(async () => {
+    if (!selectedProjects.length || !apiBase || !apiToken) {
+      setWorkItems([]);
+      return;
+    }
+    setLoadingWorkItems(true);
+
+    try {
+      const filterParam = encodeURIComponent(
+        JSON.stringify([{ project: { operator: '=', values: selectedProjects.map(String) } }]),
+      );
+      const res = await fetch(`${apiBase}/api/v3/work_packages?filters=${filterParam}&pageSize=50`, {
+        headers: {
+          ...authHeaders,
+          Accept: 'application/hal+json',
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Work Items konnten nicht geladen werden (${res.status})`);
+      }
+
+      const json = await res.json();
+      const items = json._embedded?.elements || [];
+      const normalized = items.map((item) => ({
+        id: item.id,
+        subject: item.subject,
+        projectId: item._embedded?.project?.id,
+        projectName: item._embedded?.project?.name,
+        type: item._embedded?.type?.name,
+        priority: normalizePriority(item._embedded?.priority?.name),
+        status: item._embedded?.status?.name,
+        dueDate: item.dueDate,
+        assignee: item._embedded?.assignee?.name || 'Unzugewiesen',
+      }));
+      setWorkItems(normalized);
+    } catch (err) {
+      setError(err.message);
+      setWorkItems([]);
+    } finally {
+      setLoadingWorkItems(false);
+    }
+  }, [selectedProjects, apiBase, apiToken, authHeaders]);
+
+  useEffect(() => {
+    if (apiBase && apiToken) {
+      loadProjects();
+    }
+  }, [apiBase, apiToken, loadProjects]);
+
+  useEffect(() => {
+    if (selectedProjects.length) {
+      loadVersions(selectedProjects);
+      loadWorkItems();
+    }
+  }, [selectedProjects, loadVersions, loadWorkItems]);
+
   const visibleProjects = useMemo(() => {
-    return sampleProjects.filter((project) => {
+    return projects.filter((project) => {
       const statusMatches = statusFilter === 'all' || project.status === statusFilter;
       const textMatches = `${project.name} ${project.key}`
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
       return selectedProjects.includes(project.id) && statusMatches && textMatches;
     });
-  }, [searchTerm, selectedProjects, statusFilter]);
-
-  const selectedWorkItems = useMemo(() => {
-    return workItems.filter((item) => selectedProjects.includes(item.projectId));
-  }, [selectedProjects]);
+  }, [projects, searchTerm, selectedProjects, statusFilter]);
 
   const aggregate = useMemo(() => {
-    const open = selectedWorkItems.length;
-    const critical = selectedWorkItems.filter((item) => item.priority === 'hoch').length;
-    const upcoming = selectedWorkItems.filter((item) => new Date(item.dueDate) < new Date('2024-07-31')).length;
-    const milestoneCount = visibleProjects.reduce((count, project) => count + project.milestones.length, 0);
+    const open = workItems.length;
+    const critical = workItems.filter((item) => normalizePriority(item.priority) === 'hoch').length;
+    const upcoming = workItems.filter((item) => item.dueDate && new Date(item.dueDate) < new Date(Date.now() + 30 * 86400000)).length;
+    const milestoneCount = visibleProjects.reduce(
+      (count, project) => count + (versionsByProject[project.id]?.length || 0),
+      0,
+    );
 
     return { open, critical, upcoming, milestoneCount };
-  }, [selectedWorkItems, visibleProjects]);
+  }, [workItems, visibleProjects, versionsByProject]);
 
   const toggleProject = (id) => {
     setSelectedProjects((prev) =>
       prev.includes(id) ? prev.filter((projectId) => projectId !== id) : [...prev, id],
     );
   };
+
+  const handleExport = useCallback(() => {
+    const exportData = {
+      generatedAt: new Date().toISOString(),
+      projects: visibleProjects,
+      workItems,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'opdashboard-export.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [visibleProjects, workItems]);
 
   return (
     <div className="app">
@@ -219,6 +308,18 @@ export default function App() {
               placeholder="Kopiere deinen persönlichen Token"
             />
           </label>
+          <div className="button-row">
+            <button className="ghost" onClick={testConnection}>
+              Verbindung testen
+            </button>
+            <button className="primary" onClick={loadProjects} disabled={loadingProjects}>
+              {loadingProjects ? 'Lädt …' : 'Projekte laden'}
+            </button>
+          </div>
+          {connectionState.status === 'loading' && <p className="hint">{connectionState.message}</p>}
+          {connectionState.status === 'success' && <p className="hint success">{connectionState.message}</p>}
+          {connectionState.status === 'error' && <p className="hint error">{connectionState.message}</p>}
+          {error && <p className="hint error">{error}</p>}
           <p className="hint">Beide Felder werden nur im Browser gespeichert.</p>
         </div>
       </header>
@@ -251,35 +352,26 @@ export default function App() {
                 <input
                   type="radio"
                   name="status"
-                  value="on_track"
-                  checked={statusFilter === 'on_track'}
+                  value="active"
+                  checked={statusFilter === 'active'}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 />
-                On Track
+                Aktiv
               </label>
               <label>
                 <input
                   type="radio"
                   name="status"
-                  value="at_risk"
-                  checked={statusFilter === 'at_risk'}
+                  value="inactive"
+                  checked={statusFilter === 'inactive'}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 />
-                Achtung
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="status"
-                  value="off_track"
-                  checked={statusFilter === 'off_track'}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                />
-                Kritisch
+                Inaktiv
               </label>
             </div>
             <div className="project-list">
-              {sampleProjects.map((project) => (
+              {projects.length === 0 && <p className="hint">Keine Projekte geladen.</p>}
+              {projects.map((project) => (
                 <label key={project.id} className="project-item">
                   <input
                     type="checkbox"
@@ -289,9 +381,9 @@ export default function App() {
                   <span className="dot" style={{ background: project.color }} />
                   <div>
                     <div className="project-name">{project.name}</div>
-                    <div className="project-meta">{project.key} • {project.manager}</div>
+                    <div className="project-meta">{project.key || '–'} • {project.manager}</div>
                   </div>
-                  <span className={`status status-${project.status}`}>{statusLabels[project.status]}</span>
+                  <span className={`status status-${project.status}`}>{statusLabels[project.status] || 'Status'}</span>
                 </label>
               ))}
             </div>
@@ -317,7 +409,14 @@ export default function App() {
               <p className="eyebrow">Arbeitsbereich</p>
               <h2>Projektübersicht & Verantwortung</h2>
             </div>
-            <button className="primary">Export Mock-Plan</button>
+            <div className="button-row">
+              <button className="ghost" onClick={loadWorkItems} disabled={loadingWorkItems}>
+                {loadingWorkItems ? 'Aktualisiert …' : 'Work Items laden'}
+              </button>
+              <button className="primary" onClick={handleExport}>
+                Exportieren
+              </button>
+            </div>
           </div>
 
           <div className="cards">
@@ -334,15 +433,15 @@ export default function App() {
                   </div>
                 </header>
                 <div className="objectives">
-                  {project.objectives.map((objective) => (
-                    <span key={objective} className="objective">
-                      {objective}
-                    </span>
-                  ))}
+                  {project.description ? (
+                    <span className="objective">{project.description}</span>
+                  ) : (
+                    <span className="objective muted">Keine Beschreibung hinterlegt</span>
+                  )}
                 </div>
                 <div className="milestones">
-                  {project.milestones.map((milestone) => (
-                    <div key={milestone.name} className="milestone">
+                  {(versionsByProject[project.id] || []).map((milestone) => (
+                    <div key={milestone.id} className="milestone">
                       <div>
                         <p className="milestone-name">{milestone.name}</p>
                         <p className="milestone-owner">Owner: {milestone.owner}</p>
@@ -350,6 +449,9 @@ export default function App() {
                       <div className="milestone-date">{formatDate(milestone.date)}</div>
                     </div>
                   ))}
+                  {(!versionsByProject[project.id] || versionsByProject[project.id].length === 0) && (
+                    <div className="milestone muted">Keine Milestones gefunden</div>
+                  )}
                 </div>
               </article>
             ))}
@@ -361,8 +463,9 @@ export default function App() {
                 <p className="eyebrow">Work Items</p>
                 <h3>Deadlines, Prioritäten & Zuständigkeiten</h3>
               </div>
-              <span className="pill">{selectedWorkItems.length} Einträge</span>
+              <span className="pill">{workItems.length} Einträge</span>
             </div>
+            {loadingWorkItems && <p className="hint">Lade Work Items …</p>}
             <div className="table">
               <div className="table-row head">
                 <div>ID</div>
@@ -374,28 +477,33 @@ export default function App() {
                 <div>Fällig</div>
                 <div>Owner</div>
               </div>
-              {selectedWorkItems.map((item) => {
-                const project = sampleProjects.find((p) => p.id === item.projectId);
-                return (
-                  <div key={item.id} className="table-row">
-                    <div>{item.id}</div>
-                    <div>{item.type}</div>
-                    <div className="project-cell">
-                      <span className="dot" style={{ background: project.color }} />
-                      {project.name}
-                    </div>
-                    <div>{item.title}</div>
-                    <div>
-                      <span className="priority" style={{ background: priorityColor[item.priority] }}>
-                        {item.priority}
-                      </span>
-                    </div>
-                    <div>{item.status}</div>
-                    <div>{formatDate(item.dueDate)}</div>
-                    <div>{item.assignee}</div>
+              {workItems.map((item) => (
+                <div key={item.id} className="table-row">
+                  <div>#{item.id}</div>
+                  <div>{item.type}</div>
+                  <div className="project-cell">
+                    <span className="dot" style={{ background: colorFromId(item.projectId) }} />
+                    {item.projectName || item.projectId}
                   </div>
-                );
-              })}
+                  <div>{item.subject}</div>
+                  <div>
+                    <span
+                      className="priority"
+                      style={{ background: priorityColors[normalizePriority(item.priority)] || '#111827' }}
+                    >
+                      {normalizePriority(item.priority)}
+                    </span>
+                  </div>
+                  <div>{item.status}</div>
+                  <div>{formatDate(item.dueDate)}</div>
+                  <div>{item.assignee}</div>
+                </div>
+              ))}
+              {workItems.length === 0 && (
+                <div className="table-row">
+                  <div className="full-width muted">Keine Work Items geladen.</div>
+                </div>
+              )}
             </div>
           </section>
         </section>
