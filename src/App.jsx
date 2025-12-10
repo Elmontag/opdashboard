@@ -65,7 +65,11 @@ export default function App() {
     if (apiToken) localStorage.setItem('opd-api-token', apiToken);
   }, [apiUrl, apiToken]);
 
-  const apiBase = useMemo(() => (apiUrl ? apiUrl.replace(/\/$/, '') : ''), [apiUrl]);
+  const apiBase = useMemo(() => {
+    if (!apiUrl) return '';
+    const trimmed = apiUrl.replace(/\/$/, '');
+    return trimmed.replace(/\/api(\/v3)?$/i, '');
+  }, [apiUrl]);
   const authHeaders = useMemo(
     () => (apiToken ? { Authorization: `Basic ${btoa(`${apiToken}:X`)}` } : {}),
     [apiToken],

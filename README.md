@@ -12,7 +12,8 @@ Eine stateless Single-Page-App zur Multiprojekt-Steuerung für OpenProject. Die 
 - Docker-Deployment via `docker-compose` und NGINX-Serve der gebauten SPA
 
 ## OpenProject anbinden
-1. OpenProject-Basis-URL und persönlichen API-Token in der Kopfzeile eintragen.
+1. OpenProject-Basis-URL (ohne `/api/v3`, z. B. `https://example.domain`) und persönlichen API-Token in der Kopfzeile
+   eintragen.
 2. Mit **„Verbindung testen“** die API-Reichbarkeit prüfen.
 3. **„Projekte laden“** ruft die aktiven Projekte aus OpenProject ab und füllt die Projektliste.
 4. Über die Checkboxen Projekte auswählen; **„Work Items laden“** holt die zugehörigen Work Packages (max. 50 Einträge).
