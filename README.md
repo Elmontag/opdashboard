@@ -42,6 +42,9 @@ auftaucht, kommt die Blockade nicht aus dem OPDashboard, sondern von der OpenPro
 Reverse Proxy). Das Frontend ruft die API direkt aus dem Browser auf; ohne freigegebenes `Access-Control-Allow-Origin` lässt
 der Browser die Antwort nicht zu.
 
+**Kurzantwort:** Das Problem liegt server- oder proxyseitig; die SPA kann CORS nicht „wegprogrammieren“. Stelle sicher, dass
+deine OP-Instanz Anfragen vom Dashboard-Origin zulässt oder hinterlege einen Proxy, der die passenden CORS-Header liefert.
+
 Mögliche Lösungen:
 - **Gleicher Origin:** OPDashboard und OpenProject unter derselben Domain/Origin bereitstellen (z. B. per Reverse Proxy), sodass
   keine Cross-Origin-Anfrage entsteht.

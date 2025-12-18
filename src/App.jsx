@@ -39,6 +39,17 @@ function normalizePriority(priorityName) {
   return priorityName;
 }
 
+function friendlyFetchError(err) {
+  const message = err?.message || 'Unbekannter Fehler';
+  const isNetworkError = err?.name === 'TypeError' || /Failed to fetch/i.test(message);
+
+  if (isNetworkError) {
+    return 'Netzwerk-/CORS-Fehler: Die OpenProject-Instanz erlaubt diesen Origin nicht. Bitte Proxy oder gleiche Domain nutzen.';
+  }
+
+  return message;
+}
+
 export default function App() {
   const [projects, setProjects] = useState([]);
   const [versionsByProject, setVersionsByProject] = useState({});
@@ -100,7 +111,7 @@ export default function App() {
         message: `Verbunden als ${json.name || json.login || 'User'}`,
       });
     } catch (err) {
-      setConnectionState({ status: 'error', message: err.message });
+      setConnectionState({ status: 'error', message: friendlyFetchError(err) });
     }
   }, [apiBase, apiToken, authHeaders]);
 
@@ -138,7 +149,7 @@ export default function App() {
       setProjects(normalized);
       setSelectedProjects(normalized.map((p) => p.id));
     } catch (err) {
-      setError(err.message);
+      setError(friendlyFetchError(err));
       setProjects([]);
       setSelectedProjects([]);
     } finally {
@@ -218,7 +229,7 @@ export default function App() {
       }));
       setWorkItems(normalized);
     } catch (err) {
-      setError(err.message);
+      setError(friendlyFetchError(err));
       setWorkItems([]);
     } finally {
       setLoadingWorkItems(false);
