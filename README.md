@@ -18,6 +18,8 @@ Eine stateless Single-Page-App zur Multiprojekt-Steuerung für OpenProject. Die 
 3. **„Projekte laden“** ruft die aktiven Projekte aus OpenProject ab und füllt die Projektliste.
 4. Über die Checkboxen Projekte auswählen; **„Work Items laden“** holt die zugehörigen Work Packages (max. 50 Einträge).
 5. Der **Export-Button** erzeugt eine JSON-Datei aus der aktuellen Projekt- und Work-Item-Sicht.
+> Hinweis: Die App normalisiert die eingegebene URL automatisch und entfernt `.../api/v3` sowie Query-Strings, damit Requests
+> nicht mit doppelten Pfadsegmenten abgesetzt werden.
 
 ## Lokale Entwicklung
 ```bash
@@ -32,6 +34,9 @@ Die App läuft anschließend auf http://localhost:5173.
    docker-compose up --build
    ```
 2. Die SPA ist über http://localhost:5173 erreichbar.
+   Das bereitgestellte Docker-Image nutzt Nginx nur zum Ausliefern der statischen Dateien; jede andere statische Auslieferung
+   (z. B. CDN, Netlify, `npm run preview`) funktioniert ebenfalls. Für die API-Aufrufe ist kein eigener Nginx-Proxy erforderlich,
+   solange die OpenProject-Instanz den Origin freigibt.
 
 ## Troubleshooting: CORS beim Aufruf der OpenProject-API
 Wenn im Browser ein Fehler wie
@@ -44,6 +49,9 @@ der Browser die Antwort nicht zu.
 
 **Kurzantwort:** Das Problem liegt server- oder proxyseitig; die SPA kann CORS nicht „wegprogrammieren“. Stelle sicher, dass
 deine OP-Instanz Anfragen vom Dashboard-Origin zulässt oder hinterlege einen Proxy, der die passenden CORS-Header liefert.
+
+Ein Aufruf der API direkt im Browser-Tab ist **kein** CORS-Test, weil dann kein Cross-Origin-Zugriff stattfindet. Erst wenn die
+SPA unter einer anderen Domain aus dem Browser fetch-Requests absetzt, greift die CORS-Prüfung des Browsers.
 
 Mögliche Lösungen:
 - **Gleicher Origin:** OPDashboard und OpenProject unter derselben Domain/Origin bereitstellen (z. B. per Reverse Proxy), sodass

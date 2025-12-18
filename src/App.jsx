@@ -39,15 +39,37 @@ function normalizePriority(priorityName) {
   return priorityName;
 }
 
-function friendlyFetchError(err) {
+function friendlyFetchError(err, context) {
   const message = err?.message || 'Unbekannter Fehler';
   const isNetworkError = err?.name === 'TypeError' || /Failed to fetch/i.test(message);
 
   if (isNetworkError) {
-    return 'Netzwerk-/CORS-Fehler: Die OpenProject-Instanz erlaubt diesen Origin nicht. Bitte Proxy oder gleiche Domain nutzen.';
+    return (
+      'Netzwerk-/CORS-Fehler: Browser blockiert die Antwort. ' +
+      'Gleicher Origin oder Proxy mit CORS-Headern nötig.' +
+      (context ? ` (${context})` : '')
+    );
   }
 
-  return message;
+  return context ? `${context}: ${message}` : message;
+}
+
+function normalizeApiBase(input) {
+  if (!input) return '';
+  const trimmed = input.trim();
+
+  try {
+    const parsed = new URL(trimmed.match(/^https?:\/\//) ? trimmed : `https://${trimmed}`);
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    const apiIndex = segments.findIndex((part) => part.toLowerCase() === 'api');
+    const baseSegments = apiIndex === -1 ? segments : segments.slice(0, apiIndex);
+    const basePath = baseSegments.length ? `/${baseSegments.join('/')}` : '';
+    return `${parsed.protocol}//${parsed.host}${basePath}`.replace(/\/$/, '');
+  } catch (err) {
+    console.warn('API-URL konnte nicht geparst werden', err);
+  }
+
+  return trimmed.replace(/\/$/, '').replace(/\/api(\/v3)?$/i, '');
 }
 
 export default function App() {
@@ -76,25 +98,22 @@ export default function App() {
     if (apiToken) localStorage.setItem('opd-api-token', apiToken);
   }, [apiUrl, apiToken]);
 
-  const apiBase = useMemo(() => {
-    if (!apiUrl) return '';
-    const trimmed = apiUrl.replace(/\/$/, '');
-    return trimmed.replace(/\/api(\/v3)?$/i, '');
-  }, [apiUrl]);
+  const apiBase = useMemo(() => normalizeApiBase(apiUrl), [apiUrl]);
+  const apiRoot = useMemo(() => (apiBase ? `${apiBase}/api/v3` : ''), [apiBase]);
   const authHeaders = useMemo(
     () => (apiToken ? { Authorization: `Basic ${btoa(`${apiToken}:X`)}` } : {}),
     [apiToken],
   );
 
   const testConnection = useCallback(async () => {
-    if (!apiBase || !apiToken) {
+    if (!apiRoot || !apiToken) {
       setConnectionState({ status: 'error', message: 'API-URL und Token werden benötigt.' });
       return;
     }
 
     setConnectionState({ status: 'loading', message: 'Prüfe Verbindung …' });
     try {
-      const res = await fetch(`${apiBase}/api/v3/users/me`, {
+      const res = await fetch(`${apiRoot}/users/me`, {
         headers: {
           ...authHeaders,
           Accept: 'application/hal+json',
@@ -102,7 +121,7 @@ export default function App() {
       });
 
       if (!res.ok) {
-        throw new Error(`Verbindung fehlgeschlagen (${res.status})`);
+        throw new Error(`Verbindung fehlgeschlagen (${res.status} ${res.statusText || ''} @ ${res.url})`);
       }
 
       const json = await res.json();
@@ -111,12 +130,12 @@ export default function App() {
         message: `Verbunden als ${json.name || json.login || 'User'}`,
       });
     } catch (err) {
-      setConnectionState({ status: 'error', message: friendlyFetchError(err) });
+      setConnectionState({ status: 'error', message: friendlyFetchError(err, 'Verbindungstest') });
     }
-  }, [apiBase, apiToken, authHeaders]);
+  }, [apiRoot, apiToken, authHeaders]);
 
   const loadProjects = useCallback(async () => {
-    if (!apiBase || !apiToken) {
+    if (!apiRoot || !apiToken) {
       setError('Bitte trage API-URL und Token ein.');
       return;
     }
@@ -124,7 +143,7 @@ export default function App() {
     setLoadingProjects(true);
 
     try {
-      const res = await fetch(`${apiBase}/api/v3/projects?filters=[{"active":{"operator":"=","values":["t"]}}]`, {
+      const res = await fetch(`${apiRoot}/projects?filters=[{"active":{"operator":"=","values":["t"]}}]`, {
         headers: {
           ...authHeaders,
           Accept: 'application/hal+json',
@@ -132,7 +151,7 @@ export default function App() {
       });
 
       if (!res.ok) {
-        throw new Error(`Projekte konnten nicht geladen werden (${res.status})`);
+        throw new Error(`Projekte konnten nicht geladen werden (${res.status} ${res.statusText || ''} @ ${res.url})`);
       }
 
       const json = await res.json();
@@ -149,22 +168,22 @@ export default function App() {
       setProjects(normalized);
       setSelectedProjects(normalized.map((p) => p.id));
     } catch (err) {
-      setError(friendlyFetchError(err));
+      setError(friendlyFetchError(err, 'Projekte laden'));
       setProjects([]);
       setSelectedProjects([]);
     } finally {
       setLoadingProjects(false);
     }
-  }, [apiBase, apiToken, authHeaders]);
+  }, [apiRoot, apiToken, authHeaders]);
 
   const loadVersions = useCallback(
     async (projectIds) => {
-      if (!projectIds.length || !apiBase || !apiToken) return;
+      if (!projectIds.length || !apiRoot || !apiToken) return;
       const nextVersions = {};
 
       for (const projectId of projectIds) {
         try {
-          const res = await fetch(`${apiBase}/api/v3/projects/${projectId}/versions`, {
+          const res = await fetch(`${apiRoot}/projects/${projectId}/versions`, {
             headers: {
               ...authHeaders,
               Accept: 'application/hal+json',
@@ -189,11 +208,11 @@ export default function App() {
 
       setVersionsByProject((prev) => ({ ...prev, ...nextVersions }));
     },
-    [apiBase, apiToken, authHeaders],
+    [apiRoot, apiToken, authHeaders],
   );
 
   const loadWorkItems = useCallback(async () => {
-    if (!selectedProjects.length || !apiBase || !apiToken) {
+    if (!selectedProjects.length || !apiRoot || !apiToken) {
       setWorkItems([]);
       return;
     }
@@ -203,7 +222,7 @@ export default function App() {
       const filterParam = encodeURIComponent(
         JSON.stringify([{ project: { operator: '=', values: selectedProjects.map(String) } }]),
       );
-      const res = await fetch(`${apiBase}/api/v3/work_packages?filters=${filterParam}&pageSize=50`, {
+      const res = await fetch(`${apiRoot}/work_packages?filters=${filterParam}&pageSize=50`, {
         headers: {
           ...authHeaders,
           Accept: 'application/hal+json',
@@ -211,7 +230,7 @@ export default function App() {
       });
 
       if (!res.ok) {
-        throw new Error(`Work Items konnten nicht geladen werden (${res.status})`);
+        throw new Error(`Work Items konnten nicht geladen werden (${res.status} ${res.statusText || ''} @ ${res.url})`);
       }
 
       const json = await res.json();
@@ -229,18 +248,18 @@ export default function App() {
       }));
       setWorkItems(normalized);
     } catch (err) {
-      setError(friendlyFetchError(err));
+      setError(friendlyFetchError(err, 'Work Items laden'));
       setWorkItems([]);
     } finally {
       setLoadingWorkItems(false);
     }
-  }, [selectedProjects, apiBase, apiToken, authHeaders]);
+  }, [selectedProjects, apiRoot, apiToken, authHeaders]);
 
   useEffect(() => {
-    if (apiBase && apiToken) {
+    if (apiRoot && apiToken) {
       loadProjects();
     }
-  }, [apiBase, apiToken, loadProjects]);
+  }, [apiRoot, apiToken, loadProjects]);
 
   useEffect(() => {
     if (selectedProjects.length) {
@@ -331,6 +350,7 @@ export default function App() {
               {loadingProjects ? 'Lädt …' : 'Projekte laden'}
             </button>
           </div>
+          <p className="hint">Normalisierte API-Basis: {apiRoot || '—'}{apiRoot && '/…'}</p>
           {connectionState.status === 'loading' && <p className="hint">{connectionState.message}</p>}
           {connectionState.status === 'success' && <p className="hint success">{connectionState.message}</p>}
           {connectionState.status === 'error' && <p className="hint error">{connectionState.message}</p>}
